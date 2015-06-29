@@ -12,12 +12,13 @@ class TestUniqueTracking(object):
     """
     @classmethod
     def setup_class(cls):
-        cls.con = redis.Redis()
+        cls.con = redis.Redis(db=15)  # use high db for testing
         cls.today = datetime.datetime.now()
         cls.uc = unique_count.RedisUniqueCount(cls.con)
 
     def setup(self):
-        self.con.flushdb()
+        for key in self.con.keys(pattern='redis_gadgets:*'):
+            self.con.delete(key)
 
     def test_offsets_are_sequential(self):
         """Bit offsets generated for a given type are sequential

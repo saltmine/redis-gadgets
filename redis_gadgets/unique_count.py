@@ -9,10 +9,10 @@ import logging
 log = logging.getLogger(__name__)
 
 
-TO_OFFSET_TEMPLATE = "%s_id_to_offset"
-TO_ID_TEMPLATE = "offset_to_%s_id"
-SEQUENCE_TEMPLATE = "%s_current_offset"
-DAY_KEY_TEMPLATE = "%s:%s:%s"
+TO_OFFSET_TEMPLATE = "redis_gadgets:%s_id_to_offset"
+TO_ID_TEMPLATE = "redis_gadgets:offset_to_%s_id"
+SEQUENCE_TEMPLATE = "redis_gadgets:%s_current_offset"
+DAY_KEY_TEMPLATE = "redis_gadgets:%s:%s:%s"
 
 
 class RedisUniqueCount(object):
