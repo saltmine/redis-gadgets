@@ -14,7 +14,7 @@ setup(
     url='http://keep.com',
     license='MIT',
     description='Light-weight tools to implement high-level features in Redis',
-    long_description=open('README.rst').read(),
+    long_description=open('README.md').read(),
     zip_safe=False,
     install_requires=open('requirements.txt').readlines()
 )
