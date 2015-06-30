@@ -55,3 +55,6 @@ docs/_build/
 
 # PyBuilder
 target/
+
+# Make stuff
+redis_gadgets/version.json
