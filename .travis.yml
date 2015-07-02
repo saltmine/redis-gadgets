@@ -1,0 +1,7 @@
+language: python
+
+services:
+  - redis-server
+
+script:
+  make all

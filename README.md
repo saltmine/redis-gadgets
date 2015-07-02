@@ -2,6 +2,8 @@
 
 This is a collection of helper tools built on top of redis.
 
+[![Build Status](https://travis-ci.org/saltmine/redis-gadgets.svg)](https://travis-ci.org/saltmine/redis-gadgets)
+
 # Note On Testing
 
 Most of the code here is a thin wrapper over a few redis calls.  Testing it
