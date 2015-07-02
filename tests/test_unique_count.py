@@ -149,3 +149,15 @@ class TestUniqueTracking(object):
             dt = dt - datetime.timedelta(days=1)
         eq_(self.uc.get_count(self.today, dt, 'event6'), 2)
         eq_(self.uc.get_count(dt, self.today, 'event6'), 2)
+
+    def test_no_data_days(self):
+        """Days with no data don't impact counts
+        """
+        yesterday = self.today - datetime.timedelta(days=1)
+        tomorrow = self.today + datetime.timedelta(days=1)
+        self.uc.track_event('event7', 'a', event_time=self.today)
+        self.uc.track_event('event7', 'b', event_time=self.today)
+        eq_(self.uc.get_count(self.today, self.today, 'event7'), 2, "GUARD")
+        eq_(self.uc.get_count(yesterday, self.today, 'event7'), 2)
+        eq_(self.uc.get_count(self.today, tomorrow, 'event7'), 2)
+        eq_(self.uc.get_count(yesterday, tomorrow, 'event7'), 2)

@@ -106,7 +106,7 @@ class RedisUniqueCount(object):
 
         date_counter = start_date
         keys = []
-        while date_counter < end_date:
+        while date_counter <= end_date:
             keys.append(self.__make_day_key(event, date_counter, namespace))
             date_counter = date_counter + datetime.timedelta(days=1)
 
