@@ -3,6 +3,12 @@ try:
 except ImportError:
     from distutils.core import setup
 
+# http://bugs.python.org/issue8876
+try:
+    import os
+    del os.link
+except:
+    pass
 
 setup(
     name='redis_gadgets',

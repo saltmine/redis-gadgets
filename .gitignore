@@ -58,3 +58,5 @@ target/
 
 # Make stuff
 redis_gadgets/version.json
+virtualenv/
+pep8.xml
