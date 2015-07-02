@@ -14,20 +14,23 @@ BASE_NAMESPACE = 'redis_gadgets'
 TO_OFFSET_KEY = "id_to_offset"
 TO_ID_KEY = "offset_to_id"
 SEQUENCE_KEY = "current_offset"
+DEFAULT_TTL = 60 * 10  # 10 minutes
 
 
 class RedisUniqueCount(object):
 
     """Track unique counts using redis bit strings"""
 
-    def __init__(self, redis_conn, namespace_deliminator=':'):
+    def __init__(self, redis_conn, namespace_deliminator=':',
+                 bitop_ttl=DEFAULT_TTL):
         """Bind a counter to a redis connection
 
         :param redis_conn: Redis connection to operate on
-
+        :param compound_key_ttl: number of seconds to cache BITOP results
         """
         self._redis_conn = redis_conn
         self._namespace_deliminator = namespace_deliminator
+        self._bitop_ttl = bitop_ttl
 
     def add_namespace(self, namespace, key):
         key_components = [BASE_NAMESPACE, namespace, key]
@@ -118,6 +121,10 @@ class RedisUniqueCount(object):
         if not self._redis_conn.exists(compound_key):
             log.debug("Compound key not found, doing bit op")
             self._redis_conn.bitop('OR', compound_key, *keys)
-            # expire stale counts in 10 min
-            self._redis_conn.expire(compound_key, 10 * 60)
+
+            # Store result before we set TTL then return result after
+            # TTL is set. For special case of TTL=0.
+            result = self._redis_conn.bitcount(compound_key)
+            self._redis_conn.expire(compound_key, self._bitop_ttl)
+            return result
         return self._redis_conn.bitcount(compound_key)

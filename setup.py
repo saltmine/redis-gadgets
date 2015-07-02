@@ -8,7 +8,7 @@ setup(
     name='redis_gadgets',
     author='Keep.com development team',
     author_email='opensource@keep.com',
-    version='0.1.2',
+    version='0.1.3',
     packages=find_packages(exclude=['tests*']),
     include_package_data=True,
     url='http://keep.com',
