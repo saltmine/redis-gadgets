@@ -161,3 +161,11 @@ class TestUniqueTracking(object):
         eq_(self.uc.get_count(yesterday, self.today, 'event7'), 2)
         eq_(self.uc.get_count(self.today, tomorrow, 'event7'), 2)
         eq_(self.uc.get_count(yesterday, tomorrow, 'event7'), 2)
+
+    def test_get_current_offset(self):
+        for namespace in ('global', 'somethingelse', 'users1'):
+            eq_(self.uc.get_current_offset(namespace), 0)
+            for n in range(1, ITERATIONS):
+                self.uc.track_event('event', native_id=n,
+                                    event_time=self.today, namespace=namespace)
+                eq_(self.uc.get_current_offset(namespace), n)

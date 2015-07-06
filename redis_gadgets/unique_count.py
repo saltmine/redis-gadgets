@@ -134,3 +134,14 @@ class RedisUniqueCount(object):
             self._redis_conn.expire(compound_key, self._bitop_ttl)
             return result
         return self._redis_conn.bitcount(compound_key)
+
+    def get_current_offset(self, namespace=DEFAULT_NAMESPACE):
+        """ Returns current offset for given namespace
+
+        :rtype: int
+        """
+        key = self.add_namespace(namespace, CURRENT_OFFSET_KEY)
+        try:
+            return int(self._redis_conn.get(key))
+        except TypeError:
+            return 0
