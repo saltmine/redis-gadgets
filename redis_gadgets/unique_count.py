@@ -145,3 +145,19 @@ class RedisUniqueCount(object):
             return int(self._redis_conn.get(key))
         except TypeError:
             return 0
+
+    def get_ids_for_event(self, event, namespace=DEFAULT_NAMESPACE,
+                          event_time=None):
+        """ Returns iterable of native_ids that have triggered the event
+
+        :rtype: iterator
+        """
+        if event_time is None:
+            event_time = datetime.date.today()
+        if isinstance(event_time, datetime.datetime):
+            event_time = event_time.date()
+        key = self.__make_day_key(event, event_time, namespace)
+
+        for offset in range(self.get_current_offset(namespace)):
+            if self._redis_conn.getbit(key, offset):
+                yield self.map_offset_to_id(offset)
