@@ -160,4 +160,4 @@ class RedisUniqueCount(object):
 
         for offset in range(self.get_current_offset(namespace)):
             if self._redis_conn.getbit(key, offset):
-                yield self.map_offset_to_id(offset)
+                yield self.map_offset_to_id(offset, namespace)

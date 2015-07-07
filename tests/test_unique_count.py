@@ -171,11 +171,14 @@ class TestUniqueTracking(object):
                 eq_(self.uc.get_current_offset(namespace), n)
 
     def test_get_ids_for_event(self):
-        ids = set(['id_%s' % n for n in range(2 * ITERATIONS)])
+        ids = list(['id_%s' % n for n in range(2 * ITERATIONS)])
         for namespace in ('global', 'somethingelse', 'users1'):
-            for id in ids:
+            for limit_inx, id in enumerate(ids, start=1):
                 self.uc.track_event('some_event', native_id=id,
                                     namespace=namespace)
-            tracked_ids = set(self.uc.get_ids_for_event('some_event',
-                              namespace=namespace))
+                tracked_ids = list(self.uc.get_ids_for_event('some_event',
+                                   namespace=namespace))
+                eq_(tracked_ids, ids[0:limit_inx])
+            tracked_ids = list(self.uc.get_ids_for_event('some_event',
+                               namespace=namespace))
             eq_(tracked_ids, ids)
