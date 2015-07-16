@@ -70,7 +70,7 @@ def test_no_default_start_and_end():
     '''Start and end are required for non-count queries
     '''
     st = set_theory.SetTheory(db)
-    st.zset_fetch([("fake_key:1",)], callback=lambda(x): x)
+    st.zset_fetch([("fake_key:1",)])
 
 
 @raises(ValueError)
@@ -122,7 +122,7 @@ def test_simple_count():
 def test_simple_fetch():
     st = set_theory.SetTheory(db)
     results = st.zset_fetch([('SET_A',)], start=0, end=0,
-                            ids_only=True, reverse=False)
+                            reverse=False)
     print results
     assert '0' in results
     assert '1' not in results
@@ -134,7 +134,7 @@ def test_weighted_intersect():
     st = set_theory.SetTheory(db)
     results = st.zset_fetch([('SET_A', 1.0), ('SET_B', 2.0)],
                             operator="intersect", start=0,
-                            end=0, ids_only=True)
+                            end=0)
     print results
     assert '9' in results
 
@@ -144,7 +144,7 @@ def test_weighted_union():
     # TODO: Shouldn't this test actually look at the scores?
     st = set_theory.SetTheory(db)
     results = st.zset_fetch([('SET_A', 1.0), ('SET_B', 2.0)],
-                            operator="union", start=0, end=0, ids_only=True)
+                            operator="union", start=0, end=0)
     print results
     assert '14' in results
 
@@ -159,7 +159,7 @@ def test_unweighted_compound_operations():
     # now union TEST_1 onto the earlier set and we should have the entire set
     # again (0-19 inclusive)
     results = st.zset_fetch([(temp_hash,), ('TEST_1',)],
-                            start=0, end=-1, ids_only=True,
+                            start=0, end=-1,
                             operator="union")
     for i in range(30):
         if i < 20:
@@ -178,7 +178,7 @@ def test_weighted_compound_operations():
 
     control_results = st.zset_fetch([(temp_hash_control,),
                                      ('TEST_2',)], start=0,
-                                    end=-1, ids_only=True,
+                                    end=-1,
                                     operator="intersect")
     eq_('19', control_results[0])
 
@@ -189,7 +189,7 @@ def test_weighted_compound_operations():
                                        operator="union")
     experiment_results = st.zset_fetch([(temp_hash_weighted,),
                                         ('TEST_2',)], start=0,
-                                       end=-1, ids_only=True,
+                                       end=-1,
                                        operator="intersect")
     eq_('9', experiment_results[0])
 
@@ -204,17 +204,17 @@ def test_timestamp_weighting():
 
     # with no weighting, today should show up first
     results = st.zset_fetch([('TEST_1',), ('TEST_2',)],
-                            start=0, end=-1, ids_only=True,
+                            start=0, end=-1,
                             operator="union")
     eq_('today', results[0])
 
     results = st.zset_fetch([('TEST_1', 0.0095), ('TEST_2',)],
-                            start=0, end=-1, ids_only=True,
+                            start=0, end=-1,
                             operator="union")
     eq_('yesterday', results[0])
 
     results = st.zset_fetch([('TEST_1',), ('TEST_2', 1.0005)],
-                            start=0, end=-1, ids_only=True,
+                            start=0, end=-1,
                             operator="union")
     eq_('yesterday', results[0])
 
@@ -234,7 +234,7 @@ def test_score_range_query():
     # redis range is inclusive by default, python range is not inclusive of
     # both ends, thus 5:16 in python should match 5:15 in redis
     eq_([str(i) for i in range(5, 16)], st.zset_fetch([('SET_A',)],
-        min_score=5.0, max_score=15.0, start=0, end=-1, ids_only=True,
+        min_score=5.0, max_score=15.0, start=0, end=-1,
         reverse=False))
 
 
@@ -248,7 +248,7 @@ def test_score_range_reverse_query():
     expected = [str(i) for i in range(5, 16)]
     expected.reverse()
     eq_(expected, st.zset_fetch([('SET_A',)], min_score=5.0,
-        max_score=15.0, start=0, end=-1, ids_only=True, reverse=True))
+        max_score=15.0, start=0, end=-1, reverse=True))
 
 
 @with_setup(_setup_range)
@@ -258,11 +258,11 @@ def test_score_range_inf():
     st = set_theory.SetTheory(db)
     expected = [str(i) for i in range(0, 11)]
     eq_(expected, st.zset_fetch([("SET_A",)], min_score='-inf',
-        max_score=10, start=0, end=-1, ids_only=True, reverse=False))
+        max_score=10, start=0, end=-1, reverse=False))
 
     expected = [str(i) for i in range(10, 20)]
     eq_(expected, st.zset_fetch([("SET_A",)], min_score=10,
-        max_score='+inf', start=0, end=-1, ids_only=True, reverse=False))
+        max_score='+inf', start=0, end=-1, reverse=False))
 
 
 @with_setup(_setup_range)
@@ -273,7 +273,7 @@ def test_score_range_open_interval():
     expected = [str(i) for i in range(6, 15)]
     # that unmatched paren will haunt you all day
     eq_(expected, st.zset_fetch([('SET_A',)], min_score='(5',
-        max_score='(15', start=0, end=-1, ids_only=True, reverse=False))
+        max_score='(15', start=0, end=-1, reverse=False))
 
 
 @with_setup(_setup_range)
@@ -283,7 +283,7 @@ def test_score_range_limit_offset():
     st = set_theory.SetTheory(db)
     expected = [str(i) for i in range(10, 13)]
     eq_(expected, st.zset_fetch([('SET_A',)], min_score='5',
-        max_score='15', start=5, end=7, ids_only=True, reverse=False))
+        max_score='15', start=5, end=7, reverse=False))
 
 
 @raises(ValueError)
@@ -292,7 +292,7 @@ def test_score_range_negative_offset():
     '''
     st = set_theory.SetTheory(db)
     st.zset_fetch([('SET_A',)], min_score='5', max_score='15',
-                  start=5, end=-1, ids_only=True, reverse=False)
+                  start=5, end=-1, reverse=False)
 
 
 @raises(ValueError)
@@ -301,7 +301,7 @@ def test_score_range_zero_start_neg_offset():
     '''
     st = set_theory.SetTheory(db)
     st.zset_fetch([('SET_A',)], min_score='5', max_score='15',
-                  start=0, end=-2, ids_only=True, reverse=False)
+                  start=0, end=-2, reverse=False)
 
 
 @with_setup(_compound_setup)

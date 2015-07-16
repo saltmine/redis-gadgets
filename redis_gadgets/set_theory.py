@@ -15,8 +15,6 @@ log = logging.getLogger(__name__)
 MAX_RETRIES = 2
 MAX_CACHE_SECONDS = 60 * 5  # no ZCACHE can live longer than this many seconds
 
-# TODO: get rid of callback & ids only arguments - from the perspective of this
-#       tool, returning IDs is the only correct behavior
 # TODO: Get rid of count argument on zset_fetch - clients can call zset_count
 #       directly as needed.
 # TODO: Deal with StrictRedis/Redis order argument difference
@@ -153,7 +151,7 @@ class SetTheory(object):
     def zset_range(self, bind_elements, start=None, end=None,
                    min_score=None, max_score=None, reverse=True,
                    withscores=False, operator="union", ttl=0,
-                   callback=None, aggregate="max", retries=MAX_RETRIES,
+                   aggregate="max", retries=MAX_RETRIES,
                    thread_local=False):
         """Perform operation described in bind_elements then cache and return
         the result, subject to all suplied paramaters.
@@ -211,7 +209,7 @@ class SetTheory(object):
                                        max_score=max_score,
                                        reverse=reverse, withscores=withscores,
                                        operator=operator, ttl=ttl,
-                                       callback=callback, aggregate=aggregate,
+                                       aggregate=aggregate,
                                        retries=retries - 1,
                                        thread_local=thread_local)
         if cache_created:
@@ -221,14 +219,12 @@ class SetTheory(object):
             else:
                 log.debug("setting ttl on %s to %d seconds", key_hash, ttl)
                 self._redis_conn.expire(key_hash, min(ttl, MAX_CACHE_SECONDS))
-        if callback:
-            return callback(result)
         return result
 
     def zset_fetch(self, bind_elements, start=None, end=None, min_score=None,
-                   max_score=None, count=False, reverse=True, ids_only=False,
+                   max_score=None, count=False, reverse=True,
                    withscores=False, operator="union", ttl=0,
-                   callback=None, return_key=False, aggregate="max",
+                   return_key=False, aggregate="max",
                    retries=MAX_RETRIES, thread_local=False):
         """General purpose tool for doing zset traversal in redis without
         abusing local memory too much. To call it, you send in iterables
@@ -261,10 +257,6 @@ class SetTheory(object):
             raise ValueError("return key calls may not specify min_score or "
                              "max_score")
 
-        if count and ids_only:
-            raise ValueError("`count` and `ids_only` cannot be set at the "
-                             "same time")
-
         if return_key and not ttl:
             raise ValueError("return_key will return a temporary key and will "
                              "not work with a 0 ttl")
@@ -275,11 +267,6 @@ class SetTheory(object):
                 # handled specifically in the score range code
                 raise ValueError("Score range queries do not support negative "
                                  "end points")
-
-        if ids_only:
-            # ids_only is the default behavior of set theory and should be
-            # deprecated
-            callback = None
 
         if count:
             return self.zset_count(bind_elements, min_score=min_score,
@@ -306,5 +293,5 @@ class SetTheory(object):
                                    min_score=min_score, max_score=max_score,
                                    reverse=reverse, withscores=withscores,
                                    operator=operator, ttl=ttl,
-                                   callback=callback, aggregate=aggregate,
+                                   aggregate=aggregate,
                                    retries=retries, thread_local=thread_local)

@@ -62,7 +62,7 @@ def get_matches(search_string, db, index_name, **kwargs):
     set_theory = SetTheory(db)
     return set_theory.zset_fetch([('%s:%s' % (index_name, term.lower()),)
                                  for term in search_string.split()],
-                                 reverse=False, ids_only=True,
+                                 reverse=False,
                                  operator='intersect', **kwargs)
 
 
