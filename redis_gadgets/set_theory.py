@@ -15,9 +15,6 @@ log = logging.getLogger(__name__)
 MAX_RETRIES = 2
 MAX_CACHE_SECONDS = 60 * 5  # no ZCACHE can live longer than this many seconds
 
-# TODO: Turn this into a class
-# TODO: clean up/document kwargs usage
-# TODO: get rid of db_context, make db class param
 # TODO: get rid of callback & ids only arguments - from the perspective of this
 #       tool, returning IDs is the only correct behavior
 # TODO: Get rid of count argument on zset_fetch - clients can call zset_count
@@ -76,15 +73,17 @@ class SetTheory(object):
     with a set of related zset queries."""
 
     def __init__(self, redis_conn):
-        """TODO: to be defined.
+        """
 
-        :param redis_conn: TODO
+        :param redis_conn: Redis connection.  NB: This _must_ be a StrictRedis
+        instance; a non-strict Redis object will result in the wrong order
+        being used for zset operations
 
         """
         self._redis_conn = redis_conn
 
     def zset_cache(self, bind_elements, operator="union", aggregate="max",
-                   cachebust=False, thread_local=False, **kwargs):
+                   cachebust=False, thread_local=False):
         """Perform the operation described and store the result in redis. If
         called subsequently before the cache is expired then the operation will
         be bypassed.  Returns a tuple containing a key_hash of the result of
@@ -123,7 +122,7 @@ class SetTheory(object):
 
     def zset_count(self, bind_elements, min_score=None, max_score=None,
                    operator="union", ttl=0, aggregate="max",
-                   thread_local=False, **kwargs):
+                   thread_local=False):
         """Perform 'operation' on bind_elements (or access its cache) and
         return the size of the set.
         Note that the count operation will be linear if max and min scores are
@@ -132,8 +131,7 @@ class SetTheory(object):
         key_hash, cache_created = self.zset_cache(bind_elements,
                                                   operator=operator,
                                                   aggregate=aggregate,
-                                                  thread_local=thread_local,
-                                                  **kwargs)
+                                                  thread_local=thread_local)
         # The user just wants a count, but we may still have cache to clean up
         log.debug("getting count on (%s)", key_hash)
         count = 0
@@ -156,7 +154,7 @@ class SetTheory(object):
                    min_score=None, max_score=None, reverse=True,
                    withscores=False, operator="union", ttl=0,
                    callback=None, aggregate="max", retries=MAX_RETRIES,
-                   thread_local=False, **kwargs):
+                   thread_local=False):
         """Perform operation described in bind_elements then cache and return
         the result, subject to all suplied paramaters.
         """
@@ -164,8 +162,7 @@ class SetTheory(object):
         key_hash, cache_created = self.zset_cache(bind_elements,
                                                   operator=operator,
                                                   aggregate=aggregate,
-                                                  thread_local=thread_local,
-                                                  **kwargs)
+                                                  thread_local=thread_local)
         if min_score or max_score:
             limit = None
             offset = None
@@ -216,7 +213,7 @@ class SetTheory(object):
                                        operator=operator, ttl=ttl,
                                        callback=callback, aggregate=aggregate,
                                        retries=retries - 1,
-                                       thread_local=thread_local, **kwargs)
+                                       thread_local=thread_local)
         if cache_created:
             if not ttl:
                 log.debug("no ttl, removing temp store")
@@ -225,16 +222,14 @@ class SetTheory(object):
                 log.debug("setting ttl on %s to %d seconds", key_hash, ttl)
                 self._redis_conn.expire(key_hash, min(ttl, MAX_CACHE_SECONDS))
         if callback:
-            return callback(result, **kwargs)
+            return callback(result)
         return result
-
 
     def zset_fetch(self, bind_elements, start=None, end=None, min_score=None,
                    max_score=None, count=False, reverse=True, ids_only=False,
                    withscores=False, operator="union", ttl=0,
                    callback=None, return_key=False, aggregate="max",
-                   retries=MAX_RETRIES, thread_local=False,
-                   **kwargs):
+                   retries=MAX_RETRIES, thread_local=False):
         """General purpose tool for doing zset traversal in redis without
         abusing local memory too much. To call it, you send in iterables
         consisting of
@@ -291,11 +286,11 @@ class SetTheory(object):
                                    max_score=max_score,
                                    operator=operator, ttl=ttl,
                                    aggregate=aggregate,
-                                   thread_local=thread_local, **kwargs)
+                                   thread_local=thread_local)
         elif return_key:
             key_hash, cached = self.zset_cache(bind_elements,
                                                operator=operator,
-                                               aggregate=aggregate, **kwargs)
+                                               aggregate=aggregate)
             if cached:
                 if not ttl:
                     log.debug("no ttl, removing temp store")
@@ -312,5 +307,4 @@ class SetTheory(object):
                                    reverse=reverse, withscores=withscores,
                                    operator=operator, ttl=ttl,
                                    callback=callback, aggregate=aggregate,
-                                   retries=retries, thread_local=thread_local,
-                                   **kwargs)
+                                   retries=retries, thread_local=thread_local)

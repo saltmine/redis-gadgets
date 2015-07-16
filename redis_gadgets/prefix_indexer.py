@@ -63,7 +63,7 @@ def get_matches(search_string, db, index_name, **kwargs):
     return set_theory.zset_fetch([('%s:%s' % (index_name, term.lower()),)
                                  for term in search_string.split()],
                                  reverse=False, ids_only=True,
-                                 operator='intersect', db=db, **kwargs)
+                                 operator='intersect', **kwargs)
 
 
 def compute_compound_scores(score_list, score_band_width=100):

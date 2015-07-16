@@ -70,7 +70,7 @@ def test_no_default_start_and_end():
     '''Start and end are required for non-count queries
     '''
     st = set_theory.SetTheory(db)
-    st.zset_fetch([("fake_key:1",)], db=db, callback=lambda(x): x)
+    st.zset_fetch([("fake_key:1",)], callback=lambda(x): x)
 
 
 @raises(ValueError)
@@ -78,7 +78,7 @@ def test_no_range_for_count():
     '''Start and end are invalid for count queries
     '''
     st = set_theory.SetTheory(db)
-    st.zset_fetch([("fake_key:1",)], db=db, count=True, start=1, end=1)
+    st.zset_fetch([("fake_key:1",)], count=True, start=1, end=1)
 
 
 @raises(ValueError)
@@ -87,41 +87,41 @@ def test_return_key_raises_without_ttl():
     because it will be deleted before you can use the return value
     '''
     st = set_theory.SetTheory(db)
-    st.zset_fetch([('fake_key',)], db=db, return_key=True)
+    st.zset_fetch([('fake_key',)], return_key=True)
 
 
 @with_setup(_setup)
 def test_simple_thread_safe_count():
     st = set_theory.SetTheory(db)
-    a_count = st.zset_fetch([('SET_A',)], db=db, count=True,
+    a_count = st.zset_fetch([('SET_A',)], count=True,
                             thread_local=True)
     eq_(10, a_count, "GUARD: initial count for SET_A is %s" % a_count)
-    b_count = st.zset_fetch([('SET_B',)], db=db, count=True,
+    b_count = st.zset_fetch([('SET_B',)], count=True,
                             thread_local=True)
     eq_(10, b_count, "GUARD: initial count for SET_B is %s" % b_count)
     eq_(5, st.zset_fetch([('SET_A',), ('SET_B',)],
-        db=db, operator="intersect", count=True,
+        operator="intersect", count=True,
         thread_local=True))
     eq_(15, st.zset_fetch([('SET_A',), ('SET_B',)],
-        db=db, operator="union", count=True,
+        operator="union", count=True,
         thread_local=True))
 
 
 @with_setup(_setup)
 def test_simple_count():
     st = set_theory.SetTheory(db)
-    eq_(10, st.zset_fetch([('SET_A',)], db=db, count=True))
-    eq_(10, st.zset_fetch([('SET_B',)], db=db, count=True))
+    eq_(10, st.zset_fetch([('SET_A',)], count=True))
+    eq_(10, st.zset_fetch([('SET_B',)], count=True))
     eq_(5, st.zset_fetch([('SET_A',), ('SET_B',)],
-        db=db, operator="intersect", count=True), "intersect count was wrong")
+        operator="intersect", count=True), "intersect count was wrong")
     eq_(15, st.zset_fetch([('SET_A',), ('SET_B',)],
-        db=db, operator="union", count=True), "union count was wrong")
+        operator="union", count=True), "union count was wrong")
 
 
 @with_setup(_setup)
 def test_simple_fetch():
     st = set_theory.SetTheory(db)
-    results = st.zset_fetch([('SET_A',)], db=db, start=0, end=0,
+    results = st.zset_fetch([('SET_A',)], start=0, end=0,
                             ids_only=True, reverse=False)
     print results
     assert '0' in results
@@ -133,7 +133,7 @@ def test_weighted_intersect():
     # TODO: Shouldn't this test actually look at the scores?
     st = set_theory.SetTheory(db)
     results = st.zset_fetch([('SET_A', 1.0), ('SET_B', 2.0)],
-                            db=db, operator="intersect", start=0,
+                            operator="intersect", start=0,
                             end=0, ids_only=True)
     print results
     assert '9' in results
@@ -143,7 +143,7 @@ def test_weighted_intersect():
 def test_weighted_union():
     # TODO: Shouldn't this test actually look at the scores?
     st = set_theory.SetTheory(db)
-    results = st.zset_fetch([('SET_A', 1.0), ('SET_B', 2.0)], db=db,
+    results = st.zset_fetch([('SET_A', 1.0), ('SET_B', 2.0)],
                             operator="union", start=0, end=0, ids_only=True)
     print results
     assert '14' in results
@@ -153,12 +153,12 @@ def test_weighted_union():
 def test_unweighted_compound_operations():
     st = set_theory.SetTheory(db)
     # temp hash should be (TEST_2 && TEST_3) (10-19 inclusive)
-    temp_hash = st.zset_fetch([('TEST_2',), ('TEST_3',)], db=db,
+    temp_hash = st.zset_fetch([('TEST_2',), ('TEST_3',)],
                               return_key=True, ttl=5,
                               operator="intersect")
     # now union TEST_1 onto the earlier set and we should have the entire set
     # again (0-19 inclusive)
-    results = st.zset_fetch([(temp_hash,), ('TEST_1',)], db=db,
+    results = st.zset_fetch([(temp_hash,), ('TEST_1',)],
                             start=0, end=-1, ids_only=True,
                             operator="union")
     for i in range(30):
@@ -173,11 +173,11 @@ def test_weighted_compound_operations():
     # first make an unweighted union as a control
     st = set_theory.SetTheory(db)
     temp_hash_control = st.zset_fetch([('TEST_1',), ('TEST_3',)],
-                                      db=db, return_key=True, ttl=5,
+                                      return_key=True, ttl=5,
                                       operator="union")
 
     control_results = st.zset_fetch([(temp_hash_control,),
-                                     ('TEST_2',)], db=db, start=0,
+                                     ('TEST_2',)], start=0,
                                     end=-1, ids_only=True,
                                     operator="intersect")
     eq_('19', control_results[0])
@@ -185,10 +185,10 @@ def test_weighted_compound_operations():
     # now for the actual weighting experiment
     # now make a weighted union to test TEST_1 trumps TEST_3
     temp_hash_weighted = st.zset_fetch([('TEST_1', 1000), ('TEST_3',)],
-                                       db=db, return_key=True, ttl=5,
+                                       return_key=True, ttl=5,
                                        operator="union")
     experiment_results = st.zset_fetch([(temp_hash_weighted,),
-                                        ('TEST_2',)], db=db, start=0,
+                                        ('TEST_2',)], start=0,
                                        end=-1, ids_only=True,
                                        operator="intersect")
     eq_('9', experiment_results[0])
@@ -203,17 +203,17 @@ def test_timestamp_weighting():
     db.zadd("TEST_2", float(yesterday), 'yesterday')
 
     # with no weighting, today should show up first
-    results = st.zset_fetch([('TEST_1',), ('TEST_2',)], db=db,
+    results = st.zset_fetch([('TEST_1',), ('TEST_2',)],
                             start=0, end=-1, ids_only=True,
                             operator="union")
     eq_('today', results[0])
 
-    results = st.zset_fetch([('TEST_1', 0.0095), ('TEST_2',)], db=db,
+    results = st.zset_fetch([('TEST_1', 0.0095), ('TEST_2',)],
                             start=0, end=-1, ids_only=True,
                             operator="union")
     eq_('yesterday', results[0])
 
-    results = st.zset_fetch([('TEST_1',), ('TEST_2', 1.0005)], db=db,
+    results = st.zset_fetch([('TEST_1',), ('TEST_2', 1.0005)],
                             start=0, end=-1, ids_only=True,
                             operator="union")
     eq_('yesterday', results[0])
@@ -234,7 +234,7 @@ def test_score_range_query():
     # redis range is inclusive by default, python range is not inclusive of
     # both ends, thus 5:16 in python should match 5:15 in redis
     eq_([str(i) for i in range(5, 16)], st.zset_fetch([('SET_A',)],
-        db=db, min_score=5.0, max_score=15.0, start=0, end=-1, ids_only=True,
+        min_score=5.0, max_score=15.0, start=0, end=-1, ids_only=True,
         reverse=False))
 
 
@@ -247,7 +247,7 @@ def test_score_range_reverse_query():
     # both ends, thus 5:16 in python should match 5:15 in redis
     expected = [str(i) for i in range(5, 16)]
     expected.reverse()
-    eq_(expected, st.zset_fetch([('SET_A',)], db=db, min_score=5.0,
+    eq_(expected, st.zset_fetch([('SET_A',)], min_score=5.0,
         max_score=15.0, start=0, end=-1, ids_only=True, reverse=True))
 
 
@@ -257,11 +257,11 @@ def test_score_range_inf():
     '''
     st = set_theory.SetTheory(db)
     expected = [str(i) for i in range(0, 11)]
-    eq_(expected, st.zset_fetch([("SET_A",)], db=db, min_score='-inf',
+    eq_(expected, st.zset_fetch([("SET_A",)], min_score='-inf',
         max_score=10, start=0, end=-1, ids_only=True, reverse=False))
 
     expected = [str(i) for i in range(10, 20)]
-    eq_(expected, st.zset_fetch([("SET_A",)], db=db, min_score=10,
+    eq_(expected, st.zset_fetch([("SET_A",)], min_score=10,
         max_score='+inf', start=0, end=-1, ids_only=True, reverse=False))
 
 
@@ -272,7 +272,7 @@ def test_score_range_open_interval():
     st = set_theory.SetTheory(db)
     expected = [str(i) for i in range(6, 15)]
     # that unmatched paren will haunt you all day
-    eq_(expected, st.zset_fetch([('SET_A',)], db=db, min_score='(5',
+    eq_(expected, st.zset_fetch([('SET_A',)], min_score='(5',
         max_score='(15', start=0, end=-1, ids_only=True, reverse=False))
 
 
@@ -282,7 +282,7 @@ def test_score_range_limit_offset():
     '''
     st = set_theory.SetTheory(db)
     expected = [str(i) for i in range(10, 13)]
-    eq_(expected, st.zset_fetch([('SET_A',)], db=db, min_score='5',
+    eq_(expected, st.zset_fetch([('SET_A',)], min_score='5',
         max_score='15', start=5, end=7, ids_only=True, reverse=False))
 
 
@@ -291,7 +291,7 @@ def test_score_range_negative_offset():
     '''range queries don't allow negative end, except 0, -1 special case
     '''
     st = set_theory.SetTheory(db)
-    st.zset_fetch([('SET_A',)], db=db, min_score='5', max_score='15',
+    st.zset_fetch([('SET_A',)], min_score='5', max_score='15',
                   start=5, end=-1, ids_only=True, reverse=False)
 
 
@@ -300,7 +300,7 @@ def test_score_range_zero_start_neg_offset():
     '''for range queries a negative end less than -1 should always be an error
     '''
     st = set_theory.SetTheory(db)
-    st.zset_fetch([('SET_A',)], db=db, min_score='5', max_score='15',
+    st.zset_fetch([('SET_A',)], min_score='5', max_score='15',
                   start=0, end=-2, ids_only=True, reverse=False)
 
 
@@ -308,7 +308,7 @@ def test_score_range_zero_start_neg_offset():
 def test_scored_counts():
     """Ensure that counts work with score ranges"""
     st = set_theory.SetTheory(db)
-    count = st.zset_count([('TEST_1',), ('TEST_3',)], db=db,
+    count = st.zset_count([('TEST_1',), ('TEST_3',)],
                           min_score=58, max_score=79, ttl=5,
                           operator="union")
     eq_(count, 22)
@@ -318,7 +318,7 @@ def test_scored_counts():
 def test_scored_counts_fetch():
     """Ensure that counts work with score ranges through zset_fetch"""
     st = set_theory.SetTheory(db)
-    count = st.zset_fetch([('TEST_1',), ('TEST_3',)], db=db,
+    count = st.zset_fetch([('TEST_1',), ('TEST_3',)],
                           count=True, min_score=58, max_score=79,
                           ttl=5, operator="union")
     eq_(count, 22)
@@ -328,11 +328,11 @@ def test_scored_counts_fetch():
 def test_counts_no_cache():
     """Ensure that counts dont cache with ttl=0"""
     st = set_theory.SetTheory(db)
-    count = st.zset_count([('TEST_1',), ('TEST_3',)], db=db, ttl=0,
+    count = st.zset_count([('TEST_1',), ('TEST_3',)], ttl=0,
                           operator="union")
     assert(count)
     _, cache_created = st.zset_cache([('TEST_1',), ('TEST_3',)],
-                                     db=db, operator="union")
+                                     operator="union")
     assert(cache_created)
 
 
@@ -340,11 +340,11 @@ def test_counts_no_cache():
 def test_range_no_cache():
     """Ensure that range dont cache with ttl=0"""
     st = set_theory.SetTheory(db)
-    result = st.zset_range([('TEST_1',), ('TEST_3',)], db=db, ttl=0,
+    result = st.zset_range([('TEST_1',), ('TEST_3',)], ttl=0,
                            operator="union", start=0, end=-1)
     assert(result)
     _, cache_created = st.zset_cache([('TEST_1',), ('TEST_3',)],
-                                     db=db, operator="union")
+                                     operator="union")
     assert(cache_created)
 
 
@@ -352,7 +352,7 @@ def test_range_no_cache():
 def test_scored_range():
     """Ensure that range with min and max scores works in standalone method"""
     st = set_theory.SetTheory(db)
-    results = st.zset_range([('TEST_1',), ('TEST_3',)], db=db, ttl=5,
+    results = st.zset_range([('TEST_1',), ('TEST_3',)], ttl=5,
                             operator="union", start=0, end=-1,
                             min_score=59, max_score=78)
     eq_(len(results), 20)
@@ -363,7 +363,7 @@ def test_scored_range():
 def test_scored_range_first_page():
     """Ensure that range with min and max scores works with page 0"""
     st = set_theory.SetTheory(db)
-    results = st.zset_range([('TEST_1',), ('TEST_3',)], db=db, ttl=5,
+    results = st.zset_range([('TEST_1',), ('TEST_3',)], ttl=5,
                             operator="union", start=0, end=5,
                             min_score=59, max_score=78)
     eq_(len(results), 6)
@@ -374,7 +374,7 @@ def test_scored_range_first_page():
 def test_scored_range_last_page():
     """Ensure that range with min and max scores works with page 0"""
     st = set_theory.SetTheory(db)
-    results = st.zset_range([('TEST_1',), ('TEST_3',)], db=db, ttl=5,
+    results = st.zset_range([('TEST_1',), ('TEST_3',)], ttl=5,
                             operator="union", start=15, end=19,
                             min_score=59, max_score=78)
     eq_(len(results), 5)
@@ -385,7 +385,7 @@ def test_scored_range_last_page():
 def test_range_with_scores():
     """Ensure that range with min and max scores works in standalone method"""
     st = set_theory.SetTheory(db)
-    results = st.zset_range([('TEST_1',), ('TEST_3',)], db=db, ttl=5,
+    results = st.zset_range([('TEST_1',), ('TEST_3',)], ttl=5,
                             operator="union", start=0, end=-1,
                             withscores=True)
     eq_(len(results), 30)
@@ -397,7 +397,7 @@ def test_scored_range_no_reverse():
     """Ensure that range with min and max scores works in standalone method
     without reverse"""
     st = set_theory.SetTheory(db)
-    results = st.zset_range([('TEST_1',), ('TEST_3',)], db=db, ttl=5,
+    results = st.zset_range([('TEST_1',), ('TEST_3',)], ttl=5,
                             operator="union", start=0, end=-1,
                             min_score=59, max_score=78, reverse=False)
     eq_(len(results), 20)
@@ -409,11 +409,11 @@ def test_counts_with_expiry():
     """Ensure that adding a ttl will expire a cache created by calling count"""
     st = set_theory.SetTheory(db)
     key_hash, _ = st.zset_cache([('TEST_1',), ('TEST_3',)],
-                                db=db, ttl=1, operator="union")
+                                operator="union")
     eq_(db.ttl(key_hash), set_theory.MAX_CACHE_SECONDS, "GUARD")
     # Delete the key so the count call will create it anew
     db.delete(key_hash)
-    st.zset_count([('TEST_1',), ('TEST_3',)], db=db, ttl=10,
+    st.zset_count([('TEST_1',), ('TEST_3',)], ttl=10,
                   operator="union")
     eq_(db.ttl(key_hash), 10)
 
@@ -422,12 +422,12 @@ def test_counts_with_expiry():
 def test_range_with_expiry():
     """Ensure that adding a ttl will expire a cache created by calling range"""
     st = set_theory.SetTheory(db)
-    key_hash, _ = st.zset_cache([('TEST_1',), ('TEST_3',)], db=db,
-                                ttl=1, operator="union")
+    key_hash, _ = st.zset_cache([('TEST_1',), ('TEST_3',)],
+                                operator="union")
     eq_(db.ttl(key_hash), set_theory.MAX_CACHE_SECONDS, "GUARD")
     # Delete the key so the count call will create it anew
     db.delete(key_hash)
-    st.zset_range([('TEST_1',), ('TEST_3',)], db=db,
+    st.zset_range([('TEST_1',), ('TEST_3',)],
                   operator="union", ttl=10, start=0, end=-1)
     eq_(db.ttl(key_hash), 10)
 
@@ -437,10 +437,10 @@ def test_zset_fetch_with_expiry():
     """Ensure that adding a ttl will expire a cache created by calling fetch"""
     st = set_theory.SetTheory(db)
     key_hash, _ = st.zset_cache([('TEST_1',), ('TEST_3',)],
-                                db=db, ttl=1, operator="union")
+                                operator="union")
     eq_(db.ttl(key_hash), set_theory.MAX_CACHE_SECONDS, "GUARD")
     # Delete the key so the count call will create it anew
     db.delete(key_hash)
-    st.zset_fetch([('TEST_1',), ('TEST_3',)], db=db, operator="union",
+    st.zset_fetch([('TEST_1',), ('TEST_3',)], operator="union",
                   ttl=10, return_key=True)
     eq_(db.ttl(key_hash), 10)
