@@ -1,17 +1,13 @@
 """
 Tests for set_theory cached multi-set query library
 """
-import pprint
 import time
 import redis
 from nose.tools import (raises, eq_, with_setup, assert_in, assert_not_in,
-    assert_not_equal)
-from nose.plugins.attrib import attr
+                        assert_not_equal)
 
 # TODO: prefix test keys for keyspace find and delete instead of flushing
 # TODO: Convert to class-based tests
-# TODO: Change slow expiration tests to just check that the TTL was set
-#       correctly and trust that redis does the right thing.
 
 db = redis.StrictRedis(db=15)
 
@@ -378,40 +374,40 @@ def test_scored_range_no_reverse():
     eq_(results[0], u'9')
 
 
-@attr('slow')
 @with_setup(_compound_setup)
 def test_counts_with_expiry():
     """Ensure that adding a ttl will expire a cache created by calling count"""
-    count = set_theory.zset_count([('TEST_1',), ('TEST_3',)], db=db, ttl=1,
-                                  operator="union")
-    eq_(count, 30)
-    time.sleep(2)
-    key_hash, cache_created = set_theory.zset_cache([('TEST_1',), ('TEST_3',)],
-                                                    db=db, ttl=1,
-                                                    operator="union")
-    assert(cache_created)
+    key_hash, _ = set_theory.zset_cache([('TEST_1',), ('TEST_3',)],
+                                        db=db, ttl=1, operator="union")
+    eq_(db.ttl(key_hash), set_theory.MAX_CACHE_SECONDS, "GUARD")
+    # Delete the key so the count call will create it anew
+    db.delete(key_hash)
+    set_theory.zset_count([('TEST_1',), ('TEST_3',)], db=db, ttl=10,
+                          operator="union")
+    eq_(db.ttl(key_hash), 10)
 
 
-@attr('slow')
 @with_setup(_compound_setup)
 def test_range_with_expiry():
     """Ensure that adding a ttl will expire a cache created by calling range"""
+    key_hash, _ = set_theory.zset_cache([('TEST_1',), ('TEST_3',)], db=db,
+                                        ttl=1, operator="union")
+    eq_(db.ttl(key_hash), set_theory.MAX_CACHE_SECONDS, "GUARD")
+    # Delete the key so the count call will create it anew
+    db.delete(key_hash)
     set_theory.zset_range([('TEST_1',), ('TEST_3',)], db=db,
-                          operator="union", ttl=1, start=0, end=-1)
-    time.sleep(2)
-    _, cache_created = set_theory.zset_cache([('TEST_1',), ('TEST_3',)], db=db,
-                                             ttl=1, operator="union")
-    assert(cache_created)
+                          operator="union", ttl=10, start=0, end=-1)
+    eq_(db.ttl(key_hash), 10)
 
 
-@attr('slow')
 @with_setup(_compound_setup)
 def test_zset_fetch_with_expiry():
     """Ensure that adding a ttl will expire a cache created by calling fetch"""
+    key_hash, _ = set_theory.zset_cache([('TEST_1',), ('TEST_3',)],
+                                        db=db, ttl=1, operator="union")
+    eq_(db.ttl(key_hash), set_theory.MAX_CACHE_SECONDS, "GUARD")
+    # Delete the key so the count call will create it anew
+    db.delete(key_hash)
     set_theory.zset_fetch([('TEST_1',), ('TEST_3',)], db=db, operator="union",
-                          ttl=1, return_key=True)
-    time.sleep(2)
-    _, cache_created = set_theory.zset_cache([('TEST_1',), ('TEST_3',)],
-                                             db=db, ttl=1,
-                                             operator="union")
-    assert(cache_created)
+                          ttl=10, return_key=True)
+    eq_(db.ttl(key_hash), 10)
