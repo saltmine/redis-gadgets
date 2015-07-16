@@ -2,7 +2,7 @@
 """
 import logging
 
-from .set_theory import zset_fetch
+from .set_theory import SetTheory
 
 # TODO: Base prefix for keys
 # TODO: Document/expand kwargs in get_matches
@@ -59,10 +59,11 @@ def build_prefix_index(redis_conn, index_name, search_string, some_id,
 def get_matches(search_string, db, index_name, **kwargs):
     """Return an ordered list of matches for the given search string
     """
-    return zset_fetch([('%s:%s' % (index_name, term.lower()),)
-                       for term in search_string.split()],
-                      reverse=False, ids_only=True, operator='intersect',
-                      db=db, **kwargs)
+    set_theory = SetTheory(db)
+    return set_theory.zset_fetch([('%s:%s' % (index_name, term.lower()),)
+                                 for term in search_string.split()],
+                                 reverse=False, ids_only=True,
+                                 operator='intersect', db=db, **kwargs)
 
 
 def compute_compound_scores(score_list, score_band_width=100):
