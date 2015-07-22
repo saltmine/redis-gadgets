@@ -11,8 +11,8 @@ import threading  # for generating thread-safe key names
 from . import WeightedKey
 log = logging.getLogger(__name__)
 
-#If there is a race condition causing us to have to re-run zset_fetch, retry at
-#most this number of times
+# If there is a race condition causing us to have to re-run zset_fetch, retry
+# at most this number of times
 MAX_RETRIES = 2
 MAX_CACHE_SECONDS = 60 * 5  # no ZCACHE can live longer than this many seconds
 
@@ -62,7 +62,7 @@ def build_key_hash(keys, operator, thread_local):
     else:
         raise ValueError('we cant build a key hash with no keys')
     log.debug("hash before compression %s", key_hash)
-    #key_hash = "ZCACHE:%s" % hashlib.md5(key_hash).hexdigest()
+    # key_hash = "ZCACHE:%s" % hashlib.md5(key_hash).hexdigest()
     return key_hash
 
 
@@ -94,7 +94,7 @@ class SetTheory(object):
         (one key only) Note that it may be your responsibility to expire the
         cache if it was newly created
         """
-        #a dict of fully interpolated redis keys and their weights
+        # a dict of fully interpolated redis keys and their weights
         try:
             keys = [WeightedKey(*el) for el in bind_elements]
         except TypeError:
@@ -181,12 +181,12 @@ class SetTheory(object):
                       reverse)
             if reverse:
                 # NB: revrange expects max first, range expects min first
-                result = self._redis_conn.zrevrangebyscore(key_hash, max_score,
-                                                           min_score,
-                                                           start=offset,
-                                                           num=limit,
-                                                           withscores=
-                                                           withscores)
+                result = \
+                    self._redis_conn.zrevrangebyscore(key_hash, max_score,
+                                                      min_score,
+                                                      start=offset,
+                                                      num=limit,
+                                                      withscores=withscores)
             else:
                 result = self._redis_conn.zrangebyscore(key_hash, min_score,
                                                         max_score,
@@ -204,7 +204,8 @@ class SetTheory(object):
                                                  withscores=withscores)
             log.debug("found %d entries", len(result))
         if len(bind_elements) > 1 and not result:
-          #at this point we know that the key has expired since we last checked
+            # at this point we know that the key has expired since we last
+            # checked
             if retries <= 0:
                 log.warn('Exceeded maximum number of retries for zset_fetch.')
             else:
@@ -288,8 +289,8 @@ class SetTheory(object):
             if cached:
                 if not ttl:
                     log.debug("no ttl, removing temp store")
-                    #cant't get here
-                    #c.delete(key_hash)
+                    # cant't get here
+                    # c.delete(key_hash)
                 else:
                     ttl = min(ttl, MAX_CACHE_SECONDS)
                     log.debug("setting ttl on %s to %d seconds", key_hash, ttl)
