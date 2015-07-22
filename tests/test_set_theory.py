@@ -14,6 +14,7 @@ from nose.tools import (raises, eq_, with_setup, assert_in, assert_not_in,
 db = redis.StrictRedis(db=15)
 
 from redis_gadgets import set_theory
+from redis_gadgets import WeightedKey
 
 
 def _setup():
@@ -90,6 +91,36 @@ def test_return_key_raises_without_ttl():
     st.zset_fetch([('fake_key',)], return_key=True)
 
 
+@raises(ValueError)
+def test_invalid_weighted_key():
+    """SetTheory raises ValueError on invalid bind element
+    """
+    st = set_theory.SetTheory(db)
+    st.zset_fetch([('SET_A', 1.0, 'bogus'), ('SET_B',)],
+                  operator="intersect", count=True)
+
+
+@with_setup(_setup)
+def test_single_weighted_key():
+    """Can use WeightedKey directly for single key queries
+    """
+    st = set_theory.SetTheory(db)
+    key = WeightedKey('SET_A')
+    eq_(10, st.zset_fetch([key], count=True))
+
+
+@with_setup(_setup)
+def test_multiple_weighted_key():
+    """Can use WeightedKey directly for multiple key queries
+    """
+    st = set_theory.SetTheory(db)
+    key_a = WeightedKey('SET_A')
+    key_b = WeightedKey('SET_B')
+    eq_(5, st.zset_fetch([key_a, key_b],
+        operator="intersect", count=True,
+        thread_local=True))
+
+
 @with_setup(_setup)
 def test_simple_thread_safe_count():
     st = set_theory.SetTheory(db)
@@ -150,7 +181,7 @@ def test_weighted_union():
 
 
 @with_setup(_compound_setup)
-def test_unweighted_compound_operations():
+def test_intersect_union():
     st = set_theory.SetTheory(db)
     # temp hash should be (TEST_2 && TEST_3) (10-19 inclusive)
     temp_hash = st.zset_fetch([('TEST_2',), ('TEST_3',)],
@@ -169,7 +200,7 @@ def test_unweighted_compound_operations():
 
 
 @with_setup(_compound_setup)
-def test_weighted_compound_operations():
+def test_union_intersect():
     # first make an unweighted union as a control
     st = set_theory.SetTheory(db)
     temp_hash_control = st.zset_fetch([('TEST_1',), ('TEST_3',)],
@@ -180,7 +211,8 @@ def test_weighted_compound_operations():
                                      ('TEST_2',)], start=0,
                                     end=-1,
                                     operator="intersect")
-    eq_('19', control_results[0])
+    eq_('19', control_results[0],
+        "GUARD: 19 not first element of %s" % control_results)
 
     # now for the actual weighting experiment
     # now make a weighted union to test TEST_1 trumps TEST_3

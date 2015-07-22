@@ -8,6 +8,7 @@ import os  # for generating thread-safe key names
 import socket  # for generating thread-safe key names
 import threading  # for generating thread-safe key names
 
+from . import WeightedKey
 log = logging.getLogger(__name__)
 
 #If there is a race condition causing us to have to re-run zset_fetch, retry at
@@ -46,11 +47,11 @@ def build_key_hash(keys, operator, thread_local):
     """From the dict of query keys/values, generate a hash for cache mapping"""
     key_count = len(keys)
     if key_count == 1:
-        key_hash = keys.keys()[0]  # don't make a hash, just use the single key
+        key_hash = keys[0].key
     elif key_count > 1:
         hash_chunks = []
-        for k in sorted(keys.keys()):
-            hash_chunks.append('%s*%s' % (k, keys[k]))
+        for k in sorted(keys, key=lambda x: x.key):
+            hash_chunks.append('%s*%s' % (k.key, k.weight))
         if operator == "union":
             key_hash = " || ".join(hash_chunks)
         else:
@@ -60,7 +61,7 @@ def build_key_hash(keys, operator, thread_local):
             key_hash = "%s::%s" % (key_hash, _unique_id())
     else:
         raise ValueError('we cant build a key hash with no keys')
-    #log.debug("hash before compression %s", key_hash)
+    log.debug("hash before compression %s", key_hash)
     #key_hash = "ZCACHE:%s" % hashlib.md5(key_hash).hexdigest()
     return key_hash
 
@@ -94,7 +95,10 @@ class SetTheory(object):
         cache if it was newly created
         """
         #a dict of fully interpolated redis keys and their weights
-        keys = build_keys(bind_elements)
+        try:
+            keys = [WeightedKey(*el) for el in bind_elements]
+        except TypeError:
+            raise ValueError("Invalid weighted key tuple")
         log.debug("key combination %s", keys)
         key_hash = build_key_hash(keys, operator, thread_local)
         log.debug("key hash %s", key_hash)
@@ -110,10 +114,12 @@ class SetTheory(object):
                 pipe = self._redis_conn.pipeline()
                 if operator == "intersect":
                     log.debug("Running zinterstore to key %s", key_hash)
-                    pipe.zinterstore(key_hash, keys, aggregate=aggregate)
+                    pipe.zinterstore(key_hash, {k.key: k.weight for k in keys},
+                                     aggregate=aggregate)
                 elif operator == "union":
                     log.debug("Running zunionstore to key %s", key_hash)
-                    pipe.zunionstore(key_hash, keys, aggregate=aggregate)
+                    pipe.zunionstore(key_hash, {k.key: k.weight for k in keys},
+                                     aggregate=aggregate)
                 pipe.expire(key_hash, MAX_CACHE_SECONDS)
                 pipe.execute()
         return key_hash, cache_created
