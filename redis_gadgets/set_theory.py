@@ -185,7 +185,8 @@ class SetTheory(object):
                                                            min_score,
                                                            start=offset,
                                                            num=limit,
-                                                           withscores=withscores)
+                                                           withscores=
+                                                           withscores)
             else:
                 result = self._redis_conn.zrangebyscore(key_hash, min_score,
                                                         max_score,
