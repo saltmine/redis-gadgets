@@ -6,8 +6,6 @@ from .set_theory import SetTheory
 
 # TODO: Base prefix for keys
 # TODO: Document/expand kwargs in get_matches
-# TODO: Make this a class
-# TODO: Make redis_conn, index_name object attributes
 # TODO: Make case sensitivity optional
 # TODO: Secondary score type as namedtuple('score', 'direction')
 # TODO: Document or kill kwargs in get_matches
@@ -39,8 +37,6 @@ class PrefixIndex(object):
         '''Indexes some_id by every prefix of search_string longer than
         min_prefix_len.
 
-        :param index_name: The namespace for the collection of prefix indexes
-                           this belongs to.  Prepended to the redis key name.
         :param search_string: The string you want prefixes of to find some_id
         :param some_id: The id to find
         :param min_prefix_length: Shortest prefix to index
@@ -49,7 +45,6 @@ class PrefixIndex(object):
         :param length_score: set to true to use edit distance as the most
                significant score in a secondary score list.  No effect if
                secondary_scores is None
-        :param redis_conn: Redis connection on which to operate.
         '''
         if operator not in ('add', 'rem'):
             raise ValueError("unknown operator: %s" % operator)
