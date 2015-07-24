@@ -1,0 +1,7 @@
+2015-07-28  Mark Tozzi <mark.tozzi@gmail.com>
+
+	* redis_gadgets/set_theory.py  (new file): Added SetTheory class for
+	querying and caching ordered set unions and intersections
+
+	* redis_gadgets/prefix_indexer.py (new file): Added PrefixIndexer class
+	for auto-complete and related quasi-search functionality

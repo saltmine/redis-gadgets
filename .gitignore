@@ -60,3 +60,10 @@ target/
 redis_gadgets/version.json
 virtualenv/
 pep8.xml
+
+# Redis dump file
+dump.rdb
+
+
+# Vim swap
+*.swp
