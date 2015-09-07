@@ -18,7 +18,6 @@ MAX_CACHE_SECONDS = 60 * 5  # no ZCACHE can live longer than this many seconds
 
 # TODO: Get rid of count argument on zset_fetch - clients can call zset_count
 #       directly as needed.
-# TODO: Deal with StrictRedis/Redis order argument difference
 # TODO: Loop for retry on zset fetch, don't recurse.
 
 
@@ -74,7 +73,7 @@ class SetTheory(object):
     def __init__(self, redis_conn):
         """
 
-        :param redis_conn: Redis connection.  NB: This _must_ be a StrictRedis
+        :param redis_conn: Redis connection.
         instance; a non-strict Redis object will result in the wrong order
         being used for zset operations
 

@@ -4,33 +4,54 @@ Tests for set_theory cached multi-set query library
 import time
 import redis
 from nose.tools import (raises, eq_, with_setup, assert_in, assert_not_in,
-                        assert_not_equal)
+                        assert_not_equal, make_decorator)
 
 # TODO: prefix test keys for keyspace find and delete instead of flushing
 # TODO: Add missing test doc strings
 # TODO: Change "should style" doc strings to affirmative statements
 # TODO: Convert to class-based tests
 
-db = redis.StrictRedis(db=15)
+DB_NUM = 15
 
 from redis_gadgets import set_theory
 from redis_gadgets import WeightedKey
 
 
+def run_with_both(func):
+    """Decorator to turn a test into a generator that runs the test with both
+    a Redis and a StrictRedis connection.  Decorated tests should take an
+    argument for the database connection
+    """
+    strict = redis.StrictRedis(db=DB_NUM)
+    non_strict = redis.Redis(db=DB_NUM)
+
+    def gen_new_tests():
+        yield func, strict
+        yield func, non_strict
+
+    return make_decorator(func)(gen_new_tests)
+
+
 def _setup():
+    # force these to strict mode - doesn't matter here, because presumably the
+    # caller will use the correct call syntax for whichever client they like.
+    db = redis.StrictRedis(db=DB_NUM)
     db.flushdb()
     now = time.time()
     yesterday = now - 86400
     for i in range(10):
         db.zadd('SET_A', now + i, i)
-    for i in range(5, 15):  # slight overlap in ids
+    for i in range(5, DB_NUM):  # slight overlap in ids
         db.zadd('SET_B', yesterday + i, i)
 
 
 def _compound_setup():
-  # TEST_1: { 0:50, 1:51, ... 9:59}
-  # TEST_2: { 0:50, 1:51, ... 19:69}
-  # TEST_3: { 10:70, 11:71, ... 29:79}
+    # TEST_1: { 0:50, 1:51, ... 9:59}
+    # TEST_2: { 0:50, 1:51, ... 19:69}
+    # TEST_3: { 10:70, 11:71, ... 29:79}
+    # force these to strict mode - doesn't matter here, because presumably the
+    # caller will use the correct call syntax for whichever client they like.
+    db = redis.StrictRedis(db=DB_NUM)
     db.flushdb()
     val = 50
     for i in range(30):
@@ -66,24 +87,27 @@ def test_thread_key_names():
     assert_not_equal(results[0], results[1])
 
 
+@run_with_both
 @raises(ValueError)
-def test_no_default_start_and_end():
+def test_no_default_start_and_end(db):
     '''Start and end are required for non-count queries
     '''
     st = set_theory.SetTheory(db)
     st.zset_fetch([("fake_key:1",)])
 
 
+@run_with_both
 @raises(ValueError)
-def test_no_range_for_count():
+def test_no_range_for_count(db):
     '''Start and end are invalid for count queries
     '''
     st = set_theory.SetTheory(db)
     st.zset_fetch([("fake_key:1",)], count=True, start=1, end=1)
 
 
+@run_with_both
 @raises(ValueError)
-def test_return_key_raises_without_ttl():
+def test_return_key_raises_without_ttl(db):
     '''You should not be able to return the hash key without a ttl
     because it will be deleted before you can use the return value
     '''
@@ -91,8 +115,9 @@ def test_return_key_raises_without_ttl():
     st.zset_fetch([('fake_key',)], return_key=True)
 
 
+@run_with_both
 @raises(ValueError)
-def test_invalid_weighted_key():
+def test_invalid_weighted_key(db):
     """SetTheory raises ValueError on invalid bind element
     """
     st = set_theory.SetTheory(db)
@@ -101,7 +126,8 @@ def test_invalid_weighted_key():
 
 
 @with_setup(_setup)
-def test_single_weighted_key():
+@run_with_both
+def test_single_weighted_key(db):
     """Can use WeightedKey directly for single key queries
     """
     st = set_theory.SetTheory(db)
@@ -110,7 +136,8 @@ def test_single_weighted_key():
 
 
 @with_setup(_setup)
-def test_multiple_weighted_key():
+@run_with_both
+def test_multiple_weighted_key(db):
     """Can use WeightedKey directly for multiple key queries
     """
     st = set_theory.SetTheory(db)
@@ -122,7 +149,8 @@ def test_multiple_weighted_key():
 
 
 @with_setup(_setup)
-def test_simple_thread_safe_count():
+@run_with_both
+def test_simple_thread_safe_count(db):
     st = set_theory.SetTheory(db)
     a_count = st.zset_fetch([('SET_A',)], count=True,
                             thread_local=True)
@@ -139,7 +167,8 @@ def test_simple_thread_safe_count():
 
 
 @with_setup(_setup)
-def test_simple_count():
+@run_with_both
+def test_simple_count(db):
     st = set_theory.SetTheory(db)
     eq_(10, st.zset_fetch([('SET_A',)], count=True))
     eq_(10, st.zset_fetch([('SET_B',)], count=True))
@@ -150,7 +179,8 @@ def test_simple_count():
 
 
 @with_setup(_setup)
-def test_simple_fetch():
+@run_with_both
+def test_simple_fetch(db):
     st = set_theory.SetTheory(db)
     results = st.zset_fetch([('SET_A',)], start=0, end=0,
                             reverse=False)
@@ -160,7 +190,8 @@ def test_simple_fetch():
 
 
 @with_setup(_setup)
-def test_weighted_intersect():
+@run_with_both
+def test_weighted_intersect(db):
     # TODO: Shouldn't this test actually look at the scores?
     st = set_theory.SetTheory(db)
     results = st.zset_fetch([('SET_A', 1.0), ('SET_B', 2.0)],
@@ -171,7 +202,8 @@ def test_weighted_intersect():
 
 
 @with_setup(_setup)
-def test_weighted_union():
+@run_with_both
+def test_weighted_union(db):
     # TODO: Shouldn't this test actually look at the scores?
     st = set_theory.SetTheory(db)
     results = st.zset_fetch([('SET_A', 1.0), ('SET_B', 2.0)],
@@ -181,7 +213,8 @@ def test_weighted_union():
 
 
 @with_setup(_compound_setup)
-def test_intersect_union():
+@run_with_both
+def test_intersect_union(db):
     st = set_theory.SetTheory(db)
     # temp hash should be (TEST_2 && TEST_3) (10-19 inclusive)
     temp_hash = st.zset_fetch([('TEST_2',), ('TEST_3',)],
@@ -200,7 +233,8 @@ def test_intersect_union():
 
 
 @with_setup(_compound_setup)
-def test_union_intersect():
+@run_with_both
+def test_union_intersect(db):
     # first make an unweighted union as a control
     st = set_theory.SetTheory(db)
     temp_hash_control = st.zset_fetch([('TEST_1',), ('TEST_3',)],
@@ -227,12 +261,16 @@ def test_union_intersect():
 
 
 @with_setup(_setup)
-def test_timestamp_weighting():
+@run_with_both
+def test_timestamp_weighting(db):
     st = set_theory.SetTheory(db)
+    strict = redis.StrictRedis(db=DB_NUM)
     now = time.time()
     yesterday = now - 84600
-    db.zadd("TEST_1", float(now), 'today')
-    db.zadd("TEST_2", float(yesterday), 'yesterday')
+    # force these to strict mode - doesn't matter here, because presumably the
+    # caller will use the correct call syntax for whichever client they like.
+    strict.zadd("TEST_1", float(now), 'today')
+    strict.zadd("TEST_2", float(yesterday), 'yesterday')
 
     # with no weighting, today should show up first
     results = st.zset_fetch([('TEST_1',), ('TEST_2',)],
@@ -254,12 +292,14 @@ def test_timestamp_weighting():
 def _setup_range():
     """Prime one zset with a range of 20 values
     """
+    db = redis.StrictRedis(db=DB_NUM)
     for i in range(20):
         db.zadd('SET_A', i, i)
 
 
 @with_setup(_setup_range)
-def test_score_range_query():
+@run_with_both
+def test_score_range_query(db):
     '''set theory should support score ranges
     '''
     st = set_theory.SetTheory(db)
@@ -271,7 +311,8 @@ def test_score_range_query():
 
 
 @with_setup(_setup_range)
-def test_score_range_reverse_query():
+@run_with_both
+def test_score_range_reverse_query(db):
     '''set theory should support reverse score ranges
     '''
     st = set_theory.SetTheory(db)
@@ -284,7 +325,8 @@ def test_score_range_reverse_query():
 
 
 @with_setup(_setup_range)
-def test_score_range_inf():
+@run_with_both
+def test_score_range_inf(db):
     '''range queries should support +/-inf
     '''
     st = set_theory.SetTheory(db)
@@ -298,7 +340,8 @@ def test_score_range_inf():
 
 
 @with_setup(_setup_range)
-def test_score_range_open_interval():
+@run_with_both
+def test_score_range_open_interval(db):
     '''range queries should support the redis (score open interval notation
     '''
     st = set_theory.SetTheory(db)
@@ -309,7 +352,8 @@ def test_score_range_open_interval():
 
 
 @with_setup(_setup_range)
-def test_score_range_limit_offset():
+@run_with_both
+def test_score_range_limit_offset(db):
     '''range queries should translate start & end to limit + offset notation
     '''
     st = set_theory.SetTheory(db)
@@ -318,8 +362,9 @@ def test_score_range_limit_offset():
         max_score='15', start=5, end=7, reverse=False))
 
 
+@run_with_both
 @raises(ValueError)
-def test_score_range_negative_offset():
+def test_score_range_negative_offset(db):
     '''range queries don't allow negative end, except 0, -1 special case
     '''
     st = set_theory.SetTheory(db)
@@ -327,8 +372,9 @@ def test_score_range_negative_offset():
                   start=5, end=-1, reverse=False)
 
 
+@run_with_both
 @raises(ValueError)
-def test_score_range_zero_start_neg_offset():
+def test_score_range_zero_start_neg_offset(db):
     '''for range queries a negative end less than -1 should always be an error
     '''
     st = set_theory.SetTheory(db)
@@ -337,7 +383,8 @@ def test_score_range_zero_start_neg_offset():
 
 
 @with_setup(_compound_setup)
-def test_scored_counts():
+@run_with_both
+def test_scored_counts(db):
     """Ensure that counts work with score ranges"""
     st = set_theory.SetTheory(db)
     count = st.zset_count([('TEST_1',), ('TEST_3',)],
@@ -347,7 +394,8 @@ def test_scored_counts():
 
 
 @with_setup(_compound_setup)
-def test_scored_counts_fetch():
+@run_with_both
+def test_scored_counts_fetch(db):
     """Ensure that counts work with score ranges through zset_fetch"""
     st = set_theory.SetTheory(db)
     count = st.zset_fetch([('TEST_1',), ('TEST_3',)],
@@ -357,7 +405,8 @@ def test_scored_counts_fetch():
 
 
 @with_setup(_compound_setup)
-def test_counts_no_cache():
+@run_with_both
+def test_counts_no_cache(db):
     """Ensure that counts dont cache with ttl=0"""
     st = set_theory.SetTheory(db)
     count = st.zset_count([('TEST_1',), ('TEST_3',)], ttl=0,
@@ -369,7 +418,8 @@ def test_counts_no_cache():
 
 
 @with_setup(_compound_setup)
-def test_range_no_cache():
+@run_with_both
+def test_range_no_cache(db):
     """Ensure that range dont cache with ttl=0"""
     st = set_theory.SetTheory(db)
     result = st.zset_range([('TEST_1',), ('TEST_3',)], ttl=0,
@@ -381,7 +431,8 @@ def test_range_no_cache():
 
 
 @with_setup(_compound_setup)
-def test_scored_range():
+@run_with_both
+def test_scored_range(db):
     """Ensure that range with min and max scores works in standalone method"""
     st = set_theory.SetTheory(db)
     results = st.zset_range([('TEST_1',), ('TEST_3',)], ttl=5,
@@ -392,7 +443,8 @@ def test_scored_range():
 
 
 @with_setup(_compound_setup)
-def test_scored_range_first_page():
+@run_with_both
+def test_scored_range_first_page(db):
     """Ensure that range with min and max scores works with page 0"""
     st = set_theory.SetTheory(db)
     results = st.zset_range([('TEST_1',), ('TEST_3',)], ttl=5,
@@ -403,7 +455,8 @@ def test_scored_range_first_page():
 
 
 @with_setup(_compound_setup)
-def test_scored_range_last_page():
+@run_with_both
+def test_scored_range_last_page(db):
     """Ensure that range with min and max scores works with page 0"""
     st = set_theory.SetTheory(db)
     results = st.zset_range([('TEST_1',), ('TEST_3',)], ttl=5,
@@ -414,7 +467,8 @@ def test_scored_range_last_page():
 
 
 @with_setup(_compound_setup)
-def test_range_with_scores():
+@run_with_both
+def test_range_with_scores(db):
     """Ensure that range with min and max scores works in standalone method"""
     st = set_theory.SetTheory(db)
     results = st.zset_range([('TEST_1',), ('TEST_3',)], ttl=5,
@@ -425,7 +479,8 @@ def test_range_with_scores():
 
 
 @with_setup(_compound_setup)
-def test_scored_range_no_reverse():
+@run_with_both
+def test_scored_range_no_reverse(db):
     """Ensure that range with min and max scores works in standalone method
     without reverse"""
     st = set_theory.SetTheory(db)
@@ -437,7 +492,8 @@ def test_scored_range_no_reverse():
 
 
 @with_setup(_compound_setup)
-def test_counts_with_expiry():
+@run_with_both
+def test_counts_with_expiry(db):
     """Ensure that adding a ttl will expire a cache created by calling count"""
     st = set_theory.SetTheory(db)
     key_hash, _ = st.zset_cache([('TEST_1',), ('TEST_3',)],
@@ -451,7 +507,8 @@ def test_counts_with_expiry():
 
 
 @with_setup(_compound_setup)
-def test_range_with_expiry():
+@run_with_both
+def test_range_with_expiry(db):
     """Ensure that adding a ttl will expire a cache created by calling range"""
     st = set_theory.SetTheory(db)
     key_hash, _ = st.zset_cache([('TEST_1',), ('TEST_3',)],
@@ -465,7 +522,8 @@ def test_range_with_expiry():
 
 
 @with_setup(_compound_setup)
-def test_zset_fetch_with_expiry():
+@run_with_both
+def test_zset_fetch_with_expiry(db):
     """Ensure that adding a ttl will expire a cache created by calling fetch"""
     st = set_theory.SetTheory(db)
     key_hash, _ = st.zset_cache([('TEST_1',), ('TEST_3',)],
