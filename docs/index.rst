@@ -21,6 +21,7 @@ Contents:
 Indices and tables
 ==================
 
+* :doc:`glossary`
 * :ref:`genindex`
 * :ref:`modindex`
 * :ref:`search`
