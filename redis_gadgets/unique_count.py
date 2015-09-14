@@ -7,6 +7,8 @@ import datetime
 from functools import partial
 import logging
 
+from . import granularity
+
 log = logging.getLogger(__name__)
 
 
@@ -23,16 +25,23 @@ class RedisUniqueCount(object):
     """Track unique counts using redis bit strings"""
 
     def __init__(self, redis_conn, namespace_deliminator=':',
-                 bitop_ttl=DEFAULT_TTL):
+                 bitop_ttl=DEFAULT_TTL, bucket_func=None):
         """Bind a counter to a redis connection
 
         :param redis_conn: Redis connection to operate on
         :param bitop_ttl: number of seconds to cache BITOP results
         :type bitop_ttl: int
+        :param bucket_func: Function to generate the datetime "bucket" for a
+                            given event, from a arbitrary precision date time.
+                            See (and use) examples from the granularity module.
+
         """
         self._redis_conn = redis_conn
         self._namespace_deliminator = namespace_deliminator
         self._bitop_ttl = bitop_ttl
+        if not bucket_func:
+            bucket_func = granularity.daily
+        self.bucket_func = bucket_func
 
     def add_namespace(self, namespace, key):
         key_components = [BASE_NAMESPACE, namespace, key]
@@ -82,9 +91,8 @@ class RedisUniqueCount(object):
         (e.g. for batch processing or testing)
         """
         if event_time is None:
-            event_time = datetime.date.today()
-        if isinstance(event_time, datetime.datetime):
-            event_time = event_time.date()
+            event_time = datetime.datetime.utcnow()
+        event_time = self.bucket_func(event_time)
         key = self.__make_day_key(event, event_time, namespace)
         offset = self.map_id_to_offset(native_id, namespace)
 
@@ -98,10 +106,8 @@ class RedisUniqueCount(object):
         :type start_date: datetime.datetime
         :type end_date: datetime.datetime
         """
-        if isinstance(start_date, datetime.datetime):
-            start_date = start_date.date()
-        if isinstance(end_date, datetime.datetime):
-            end_date = end_date.date()
+        start_date = self.bucket_func(start_date)
+        end_date = self.bucket_func(end_date)
 
         if start_date == end_date:
             # special case - we can just read from an existing day key here
@@ -153,9 +159,8 @@ class RedisUniqueCount(object):
         :rtype: iterator
         """
         if event_time is None:
-            event_time = datetime.date.today()
-        if isinstance(event_time, datetime.datetime):
-            event_time = event_time.date()
+            event_time = datetime.datetime.utcnow()
+        event_time = self.bucket_func(event_time)
         key = self.__make_day_key(event, event_time, namespace)
 
         for offset in range(self.get_current_offset(namespace)):
